@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: biblioteca-api
+
+  # O banco precisa existir antes da subida; o docker-compose ja cria o BibliotecaDB.
+  datasource:
+    url: ${DB_URL:jdbc:sqlserver://localhost:1433;databaseName=BibliotecaDB;encrypt=true;trustServerCertificate=true}
+    username: ${DB_USER:sa}
+    password: ${DB_PASSWORD:}
+
+  jpa:
+    open-in-view: false
+    # o schema e do Flyway; o Hibernate so confere se as entidades batem com ele
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        # as colunas de texto sao NVARCHAR, para guardar acentos sem depender da collation
+        use_nationalized_character_data: true
+
+  flyway:
+    enabled: true
+
+biblioteca:
+  prazo-dias: 14
+  limite-emprestimos: 3
+  multa-por-dia: 2.00
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
