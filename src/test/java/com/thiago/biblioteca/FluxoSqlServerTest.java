@@ -2,6 +2,9 @@ package com.thiago.biblioteca;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thiago.biblioteca.domain.Livro;
+import com.thiago.biblioteca.service.ConflitoException;
+import com.thiago.biblioteca.service.LivroService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,7 +13,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -31,6 +41,39 @@ class FluxoSqlServerTest {
 
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
+    @Autowired LivroService livros;
+
+    @Test
+    void cadastrosSimultaneosDoMesmoIsbnViramUmCriadoEOsOutrosConflito() throws Exception {
+        String isbn = "97898" + String.format("%08d", ThreadLocalRandom.current().nextInt(100_000_000));
+        int tentativas = 6;
+        CountDownLatch largada = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(tentativas);
+        try {
+            List<Future<String>> resultados = new ArrayList<>();
+            for (int i = 0; i < tentativas; i++) {
+                resultados.add(pool.submit(() -> {
+                    largada.await();
+                    try {
+                        livros.cadastrar(new Livro(isbn, "Concorrente", "Autor", 2020, 1));
+                        return "criado";
+                    } catch (ConflitoException e) {
+                        return "conflito";
+                    }
+                }));
+            }
+            largada.countDown();
+
+            List<String> obtidos = new ArrayList<>();
+            for (Future<String> r : resultados) {
+                obtidos.add(r.get());   // qualquer outra excecao (o antigo 500) falha o teste aqui
+            }
+            assertThat(obtidos).containsOnlyOnce("criado");
+            assertThat(obtidos).filteredOn("conflito"::equals).hasSize(tentativas - 1);
+        } finally {
+            pool.shutdownNow();
+        }
+    }
 
     @Test
     void emprestaDevolveERespeitaODisponivel() throws Exception {

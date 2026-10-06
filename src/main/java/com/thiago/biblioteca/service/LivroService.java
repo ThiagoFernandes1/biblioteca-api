@@ -3,6 +3,7 @@ package com.thiago.biblioteca.service;
 import com.thiago.biblioteca.domain.Livro;
 import com.thiago.biblioteca.repository.EmprestimoRepository;
 import com.thiago.biblioteca.repository.LivroRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -41,10 +42,16 @@ public class LivroService {
 
     @Transactional
     public Livro cadastrar(Livro livro) {
+        String duplicado = "Ja existe um livro com o ISBN " + livro.getIsbn() + ".";
         if (livros.existsByIsbn(livro.getIsbn())) {
-            throw new ConflitoException("Ja existe um livro com o ISBN " + livro.getIsbn() + ".");
+            throw new ConflitoException(duplicado);
         }
-        return livros.save(livro);
+        try {
+            return livros.saveAndFlush(livro);
+        } catch (DataIntegrityViolationException e) {
+            // dois cadastros simultaneos passam juntos pela checagem acima; a UNIQUE do banco barra o segundo
+            throw new ConflitoException(duplicado);
+        }
     }
 
     @Transactional

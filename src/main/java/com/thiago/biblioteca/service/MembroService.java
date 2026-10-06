@@ -2,6 +2,7 @@ package com.thiago.biblioteca.service;
 
 import com.thiago.biblioteca.domain.Membro;
 import com.thiago.biblioteca.repository.MembroRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -28,10 +29,16 @@ public class MembroService {
 
     @Transactional
     public Membro cadastrar(String nome, String email) {
+        String duplicado = "Ja existe um membro com o e-mail " + email + ".";
         if (membros.existsByEmailIgnoreCase(email)) {
-            throw new ConflitoException("Ja existe um membro com o e-mail " + email + ".");
+            throw new ConflitoException(duplicado);
         }
-        return membros.save(new Membro(nome, email));
+        try {
+            return membros.saveAndFlush(new Membro(nome, email));
+        } catch (DataIntegrityViolationException e) {
+            // dois cadastros simultaneos passam juntos pela checagem acima; a UNIQUE do banco barra o segundo
+            throw new ConflitoException(duplicado);
+        }
     }
 
     /** Desativar em vez de excluir preserva o historico de emprestimos do membro. */
