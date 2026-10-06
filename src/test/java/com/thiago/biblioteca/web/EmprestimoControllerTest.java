@@ -16,7 +16,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDate;
 
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -69,5 +72,29 @@ class EmprestimoControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campos.livroId").exists())
                 .andExpect(jsonPath("$.campos.membroId").exists());
+    }
+
+    @Test
+    void idQueNaoENumeroDizOQueEstaErrado() throws Exception {
+        mvc.perform(get("/api/emprestimos/abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("'id' recebeu \"abc\", mas espera um numero inteiro."));
+    }
+
+    @Test
+    void jsonQuebradoSaiEmProblemJson() throws Exception {
+        mvc.perform(post("/api/emprestimos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"livroId\":1,"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
+    }
+
+    @Test
+    void metodoNaoSuportadoSaiEmProblemJson() throws Exception {
+        mvc.perform(delete("/api/emprestimos/1"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
     }
 }
