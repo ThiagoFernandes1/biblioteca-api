@@ -90,6 +90,8 @@ No PowerShell, troque a segunda linha por:
 $env:DB_PASSWORD = "Biblioteca@2026"; mvn spring-boot:run
 ```
 
+Se a porta 1433 já estiver ocupada por outro SQL Server, suba com `DB_PORT=1434 docker compose up -d` e aponte `DB_URL` para `localhost:1434`.
+
 Para usar outro SQL Server, defina `DB_URL`, `DB_USER` e `DB_PASSWORD`.
 
 ---
